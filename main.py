@@ -1,39 +1,34 @@
 import tkinter as tk
 
+# Création de la fenêtre principale
+belis = tk.Tk()
+belis.title("Interface Graphique - TP Graphes")
 
-class Application:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Interface Graphique - TP Graphes")
-        self._create_menu()
+# Création de la barre de menu
+menubar = tk.Menu(belis)
 
-    def _create_menu(self):
-        menubar = tk.Menu(self.root)
+# Menu "Fichier"
+fichier_menu = tk.Menu(menubar, tearoff=0)
+menubar.add_cascade(label="Fichier", menu=fichier_menu)
 
-        
-        fichier_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Fichier", menu=fichier_menu)
+# Menu "Création"
+creation_menu = tk.Menu(menubar, tearoff=0)
+menubar.add_cascade(label="Création", menu=creation_menu)
 
-        
-        creation_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Création", menu=creation_menu)
+# Menu "Affichage"
+affichage_menu = tk.Menu(menubar, tearoff=0)
+menubar.add_cascade(label="Affichage", menu=affichage_menu)
 
-        
-        affichage_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Affichage", menu=affichage_menu)
+# Menu "Exécution"
+execution_menu = tk.Menu(menubar, tearoff=0)
+menubar.add_cascade(label="Exécution", menu=execution_menu)
 
-        
-        execution_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Exécution", menu=execution_menu)
+# Menu "Édition"
+edition_menu = tk.Menu(menubar, tearoff=0)
+menubar.add_cascade(label="Édition", menu=edition_menu)
 
-        
-        edition_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Édition", menu=edition_menu)
+# Attacher le menu à la fenêtre principale
+belis.config(menu=menubar)
 
-        self.root.config(menu=menubar)
-
-# Lancer l'application
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = Application(root)
-    root.mainloop()
+# Boucle principale
+belis.mainloop()
