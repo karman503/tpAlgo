@@ -2,7 +2,7 @@ import tkinter as tk
 
 # Création de la fenêtre principale
 belis = tk.Tk()
-belis.title("Interface Graphique - TP Graphes")
+belis.title("Interface Graphique")
 
 # Création de la barre de menu
 menubar = tk.Menu(belis)
