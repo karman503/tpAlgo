@@ -3,6 +3,10 @@ from tkinter import Canvas, Menu, filedialog, messagebox
 from tkinter import ttk
 import math
 from tkinter import simpledialog
+import matplotlib.pyplot as plt
+import networkx as nx
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 
 afficher_etiquettes_aretes = False  # Variable d'état pour afficher les étiquettes des arêtes
 
@@ -52,6 +56,7 @@ def nouveau():
     
     # Créer le canvas
     canvas = tk.Canvas(canvas_frame, bg='white')
+    new_tab.canvas = canvas
     
     # Créer les scrollbars
     scrollbar_y = tk.Scrollbar(canvas_frame, orient='vertical', command=canvas.yview)
@@ -90,6 +95,7 @@ def nouveau():
         'sommets': [],
         'aretes': set(),  # Utiliser un ensemble pour éviter les doublons
         'arete_orientee': False,
+        'canvas': canvas,
         'matrice_adj_frame': matrice_adj_frame,
         'matrice_inc_frame': matrice_inc_frame
     }
@@ -440,28 +446,6 @@ def sommet_trop_proche(nouveau_sommet, sommets):
             return True
     return False
 
-def ajouter_onglet():
-    frame = tk.Frame(notebook)
-    canvas = tk.Canvas(frame, bg="white")
-    canvas.pack(expand=1, fill="both")
-
-    # Attacher le canvas à l'onglet pour pouvoir y accéder plus tard
-    frame.canvas = canvas
-
-    # Initialiser les données du graphe pour cet onglet
-    tab_data[str(frame)] = {
-        'sommets': [],
-        'aretes': set(),
-        'type_arete': None,
-        'arete_orientee': False,
-    }
-
-    notebook.add(frame, text=f"Graphe {len(tab_data)}")
-    notebook.select(frame)
-
-    # Lier les clics à canvas_click
-    canvas.bind("<Button-1>", lambda event: canvas_click(event, canvas))
-
 # Fonction pour dessiner le graphe
 def dessiner_graphe(canvas, current_tab):
     canvas.delete("all")
@@ -486,25 +470,59 @@ def dessiner_graphe(canvas, current_tab):
         canvas.create_oval(x - 10, y - 10, x + 10, y + 10, fill="blue", tags="sommet")
         canvas.create_text(x, y, text=str(i+1), fill="white", font=("Arial", 10, "bold"))
 
-# Fonction pour afficher le graphe
-def afficher_graphe():
-    if not notebook.tabs():
-        messagebox.showerror("Erreur", "Aucun onglet n'existe. Veuillez en créer un d'abord.")
+
+def afficher_graphe_networkx():
+    current_tab = notebook.nametowidget(notebook.select())
+    data = tab_data.get(str(current_tab))
+    
+    if not data:
+        messagebox.showerror("Erreur", "Aucune donnée disponible pour cet onglet.")
         return
 
-    selected_tab_id = notebook.select()
-    if not selected_tab_id:
-        # Sélectionner automatiquement le premier onglet
-        notebook.select(notebook.tabs()[0])
-        selected_tab_id = notebook.select()
+    sommets = data['sommets']
+    aretes = data['aretes']
+    orientee = data['arete_orientee']
 
-    current_tab = notebook.nametowidget(selected_tab_id)
+    if not sommets:
+        messagebox.showinfo("Info", "Le graphe est vide.")
+        return
 
-    if hasattr(current_tab, 'canvas'):
-        canvas = current_tab.canvas
-        dessiner_graphe(canvas, current_tab)
-    else:
-        messagebox.showerror("Erreur", "Aucun canvas associé à cet onglet.")
+    # Construire le graphe avec NetworkX
+    G = nx.DiGraph() if orientee else nx.Graph()
+
+    for i in range(len(sommets)):
+        G.add_node(i)
+
+    for s1, s2, _ in aretes:
+        G.add_edge(s1, s2)
+
+    # ✅ Utiliser les vraies positions cliquées pour le dessin
+    pos = {i: (x, -y) for i, (x, y) in enumerate(sommets)}
+
+    # ✅ Numérotation des sommets à partir de 1
+    labels = {i: str(i + 1) for i in G.nodes()}
+
+    # Créer la nouvelle fenêtre
+    fenetre_graphe = tk.Toplevel()
+    fenetre_graphe.title("Affichage du Graphe")
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+
+    # ✅ Dessiner le graphe avec pos et labels
+    # Dessiner le graphe
+    nx.draw(
+        G, pos, labels=labels,
+        node_color='orange',      # couleur des sommets
+        edge_color='black',       # couleur des arêtes
+        node_size=700,            # taille des sommets
+        width=2.5,                # épaisseur des arêtes
+        font_weight='bold', ax=ax
+    )
+
+    # Intégrer matplotlib dans Tkinter
+    canvas = FigureCanvasTkAgg(fig, master=fenetre_graphe)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
 # Fonction pour générer la matrice d'incidence
 def generer_matrice_incidence():
@@ -655,11 +673,59 @@ def supprimer_arete(matrice_adj, u, v):
     matrice_adj[u][v] = 0
     matrice_adj[v][u] = 0
 
-def dfs(matrice_adj, n, sommet, visites):
+def dfs(matrice_adj, n, sommet, visites, parcours, arbre):
     visites[sommet] = True
+    parcours.append(sommet)
     for voisin in range(n):
         if matrice_adj[sommet][voisin] == 1 and not visites[voisin]:
-            dfs(matrice_adj, n, voisin, visites)
+            arbre.append((sommet, voisin))
+            dfs(matrice_adj, n, voisin, visites, parcours, arbre)
+
+def parcours_profondeur():
+    current_tab = notebook.nametowidget(notebook.select())
+    data = tab_data[str(current_tab)]
+    sommets = data['sommets']
+    aretes = data['aretes']
+
+    n = len(sommets)
+    matrice_adj = [[0] * n for _ in range(n)]
+
+    for s1, s2, orientee in aretes:
+        matrice_adj[s1][s2] = 1
+        if not orientee:
+            matrice_adj[s2][s1] = 1
+
+    visite = [False] * n
+    parcours = []
+    arbre = []
+
+    for sommet in range(n):
+        if not visite[sommet]:
+            dfs(matrice_adj, n, sommet, visite, parcours, arbre)
+
+    # Affichage dans une nouvelle fenêtre
+    profondeur_window = tk.Toplevel(fenetre)
+    profondeur_window.title("Parcours en Profondeur")
+
+    frame = tk.Frame(profondeur_window)
+    frame.pack(fill=tk.BOTH, expand=True)
+
+    v_scroll = tk.Scrollbar(frame, orient=tk.VERTICAL)
+    v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+    canvas = tk.Canvas(frame, width=400, height=400, bg='white', yscrollcommand=v_scroll.set)
+    canvas.pack(fill=tk.BOTH, expand=True)
+
+    v_scroll.config(command=canvas.yview)
+
+    dessiner_arbre_couvrant(canvas, arbre, sommets)
+
+    label = tk.Label(profondeur_window, text=" -> ".join([f"{i+1}" for i in parcours]), font=("Helvetica", 12))
+    label.pack(padx=10, pady=10)
+
+    canvas.config(scrollregion=canvas.bbox("all"))
+
+    print("Parcours (Profondeur) :", parcours)
 
 # Fonction pour supprimer une arête dans la matrice d'adjacence
 def est_connexe(matrice_adj, n):
@@ -991,7 +1057,7 @@ mon_menu.add_cascade(label="Création", menu=creation_menu)
 # Menu Affichage
 affichage_menu = tk.Menu(mon_menu, tearoff=0)
 chaine_menu = tk.Menu(affichage_menu, tearoff=0)
-affichage_menu.add_command(label="Graphe", command=afficher_graphe)
+affichage_menu.add_command(label="Graphe", command=afficher_graphe_networkx)
 chaine_menu.add_command(label='Hamiltonienne',command=afficher_chaine_hamiltonienne)
 chaine_menu.add_command(label='Eulerienne',command=afficher_chaine_eulerienne)
 affichage_menu.add_cascade(label='Chaînes', menu=chaine_menu)
@@ -1007,6 +1073,7 @@ chemin_menu = tk.Menu(affichage_menu, tearoff=0)
 # Exécution
 execution_menu = tk.Menu(mon_menu, tearoff=0)
 execution_menu.add_command(label="Parcours en largeur", command=parcours_largeur)
+execution_menu.add_command(label="Parcours en profondeur", command=parcours_profondeur)
 mon_menu.add_cascade(label="Exécution", menu=execution_menu)
 
 # Edition
