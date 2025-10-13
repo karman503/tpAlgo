@@ -6,7 +6,8 @@ from tkinter import simpledialog
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-
+import os
+from docx import Document
 
 afficher_etiquettes_aretes = False  # Variable d'état pour afficher les étiquettes des arêtes
 
@@ -103,81 +104,110 @@ def nouveau():
 # Variable globale pour garder la trace du nombre de sommets
 sommets_count = 0
 
+# Fonction pour Ouvrir des fichiers de differentes extension
 def ouvrir_fichier():
     global current_file, sommets_count, aretes
     aretes = set()
-    file_path = filedialog.askopenfilename(filetypes=[("Fichiers Python", "*.*")])
+    file_path = filedialog.askopenfilename(
+        filetypes=[
+            ("Tous les fichiers", "*.*"),
+            ("Fichiers texte", "*.txt"),
+            ("Fichiers Word", "*.docx"),
+            ("Fichiers PDF", "*.pdf"),
+            ("Fichiers Python", "*.py"),
+        ]
+    )
+
     if file_path:
-        current_file = file_path  # Mettez à jour current_file ici
+        extension = os.path.splitext(file_path)[1].lower()
+        current_file = file_path
         new_tab = tk.Frame(notebook)
-        canvas = tk.Canvas(new_tab, bg='white')
-        canvas.pack(expand=1, fill='both')
-        notebook.add(new_tab, text=file_path.split('/')[-1])
+        notebook.add(new_tab, text=os.path.basename(file_path))
         notebook.select(new_tab)
 
         try:
-            with open(file_path, 'r') as file:
-                contenu = file.read()
+            # === Cas 1 : fichier .py ===
+            if extension == '.py':
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    contenu = file.read()
 
-            namespace = {}
-            exec(contenu, namespace)
+                namespace = {}
+                exec(contenu, namespace)
 
-            # Initialiser les données pour le nouvel onglet
-            aretes = set(namespace.get('aretes', []))
-            aretes_orientees = set(namespace.get('aretes_orientees', []))
+                aretes = set(namespace.get('aretes', []))
+                aretes_orientees = set(namespace.get('aretes_orientees', []))
 
-            # Déterminer le type d'arête
-            type_arete = 'orientée' if aretes_orientees else ('non orientée' if aretes else None)
+                type_arete = 'orientée' if aretes_orientees else ('non orientée' if aretes else None)
 
-            tab_data[str(new_tab)] = {
-                'sommets': namespace.get('sommets', []),
-                'aretes': aretes,
-                'aretes_orientees': aretes_orientees,
-                'arete_orientee': type_arete == 'orientée',
-                'type_arete': type_arete,
-                'matrice_adj_frame': None,
-                'matrice_inc_frame': None
-            }
+                canvas = tk.Canvas(new_tab, bg='white')
+                canvas.pack(expand=1, fill='both')
 
-            # Mettre à jour le compteur de sommets
-            sommets_count = len(tab_data[str(new_tab)]['sommets'])
+                tab_data[str(new_tab)] = {
+                    'sommets': namespace.get('sommets', []),
+                    'aretes': aretes,
+                    'aretes_orientees': aretes_orientees,
+                    'arete_orientee': type_arete == 'orientée',
+                    'type_arete': type_arete,
+                    'matrice_adj_frame': None,
+                    'matrice_inc_frame': None
+                }
 
-            # Dessiner le graphe avec les données chargées
-            dessiner_graphe(canvas, str(new_tab))
+                sommets_count = len(tab_data[str(new_tab)]['sommets'])
 
-            # Dessiner les arêtes non orientées
-            for arete in tab_data[str(new_tab)]['aretes']:
-                if len(arete) == 2:
-                    (s1, s2) = arete
-                    dessiner_arete(s1, s2, canvas)
+                dessiner_graphe(canvas, str(new_tab))
 
-            # Dessiner les arêtes orientées
-            for arete_orientee in tab_data[str(new_tab)]['aretes_orientees']:
-                if len(arete_orientee) == 2:
-                    (s1, s2) = arete_orientee
-                    dessiner_arete_orientee(s1, s2, canvas)
+                for arete in tab_data[str(new_tab)]['aretes']:
+                    if len(arete) == 2:
+                        dessiner_arete(*arete, canvas)
 
-            # Demander à l'utilisateur s'il veut modifier le graphe
-            reponse = messagebox.askyesno("Modifier le Graphe", "Voulez-vous modifier votre graphe ?")
+                for arete_orientee in tab_data[str(new_tab)]['aretes_orientees']:
+                    if len(arete_orientee) == 2:
+                        dessiner_arete_orientee(*arete_orientee, canvas)
 
-            if reponse:
-                global creation_sommet, creation_arete, sommet_selectionne
-                creation_sommet = True
-                creation_arete = False
-                sommet_selectionne = None
-                canvas.bind("<Button-1>", lambda event: canvas_click(event, canvas))
+                reponse = messagebox.askyesno("Modifier le Graphe", "Voulez-vous modifier votre graphe ?")
 
-                # Mettre à jour les options de menu en fonction du type d'arêtes
-                if type_arete == 'orientée':
-                    mon_menu.entryconfig("Orientée", state="normal")  # Activer la création d'arêtes orientées
-                    mon_menu.entryconfig("Non-orientée", state="disabled")  # Désactiver la création d'arêtes non orientées
-                elif type_arete == 'non orientée':
-                    mon_menu.entryconfig("Non-orientée", state="normal")  # Activer la création d'arêtes non orientées
-                    mon_menu.entryconfig("Orientée", state="disabled")  # Désactiver la création d'arêtes orientées
+                if reponse:
+                    global creation_sommet, creation_arete, sommet_selectionne
+                    creation_sommet = True
+                    creation_arete = False
+                    sommet_selectionne = None
+                    canvas.bind("<Button-1>", lambda event: canvas_click(event, canvas))
+
+                    if type_arete == 'orientée':
+                        mon_menu.entryconfig("Orientée", state="normal")
+                        mon_menu.entryconfig("Non-orientée", state="disabled")
+                    elif type_arete == 'non orientée':
+                        mon_menu.entryconfig("Non-orientée", state="normal")
+                        mon_menu.entryconfig("Orientée", state="disabled")
+
+            # === Cas 2 : fichier .txt ===
+            elif extension == '.txt':
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    contenu = file.read()
+
+                text_widget = tk.Text(new_tab, wrap='word')
+                text_widget.insert('1.0', contenu)
+                text_widget.config(state='disabled')
+                text_widget.pack(expand=1, fill='both')
+
+            # === Cas 3 : fichier .docx ===
+            elif extension == '.docx':
+                doc = Document(file_path)
+                contenu = "\n".join([para.text for para in doc.paragraphs])
+
+                text_widget = tk.Text(new_tab, wrap='word')
+                text_widget.insert('1.0', contenu)
+                text_widget.config(state='disabled')
+                text_widget.pack(expand=1, fill='both')
+
+            # === Cas autres (non gérés) ===
+            else:
+                messagebox.showwarning("Type non pris en charge", f"Le fichier '{extension}' n'est pas pris en charge pour l'ouverture dans cette application.")
+                notebook.forget(new_tab)
 
         except Exception as e:
             messagebox.showerror("Erreur", f"Erreur lors de l'ouverture du fichier : {e}")
-       
+
 # Fonction pour enregistrer le fichier actuel
 def enregistrer_fichier():
     global current_file
@@ -490,10 +520,10 @@ def afficher_graphe_networkx():
     for s1, s2, _ in aretes:
         G.add_edge(s1, s2)
 
-    # ✅ Utiliser les vraies positions cliquées pour le dessin
+    # Utiliser les vraies positions cliquées pour le dessin
     pos = {i: (x, -y) for i, (x, y) in enumerate(sommets)}
 
-    # ✅ Numérotation des sommets à partir de 1
+    # Numérotation des sommets à partir de 1
     labels = {i: str(i + 1) for i in G.nodes()}
 
     # Créer la nouvelle fenêtre
@@ -502,8 +532,7 @@ def afficher_graphe_networkx():
 
     fig, ax = plt.subplots(figsize=(6, 5))
 
-    # ✅ Dessiner le graphe avec pos et labels
-    # Dessiner le graphe
+    # Dessiner le graphe avec pos et labels
     nx.draw(
         G, pos, labels=labels,
         node_color='orange',      # couleur des sommets
@@ -916,7 +945,7 @@ def parcours_largeur():
     canvas.config(scrollregion=canvas.bbox("all"))
 
     # Debug
-    print("Parcours:", parcours)  # Pour vérifier le contenu
+    print("Parcours (Largeur) :", parcours)  # Pour vérifier le contenu
 
 def parcours_profondeur():
     current_tab = notebook.nametowidget(notebook.select())
@@ -964,8 +993,6 @@ def parcours_profondeur():
 
     print("Parcours (Profondeur) :", parcours)
 
-
-# Assurez-vous d'ajouter cette fonction à votre barre de menu ou à un bouton pour l'exécuter.
 # Créer la barre de menu
 mon_menu = Menu(fenetre)
 
