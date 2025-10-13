@@ -432,12 +432,6 @@ def sauvegarder_graphe(current_tab):
     graphe_data = f"sommets = {sommets}\naretes = {list(aretes)}\n"
     return graphe_data
 
-# Charger un graphe depuis un fichier
-def charger_graphe(contenu, canvas, current_tab):
-    global tab_data
-    exec(contenu, {}, tab_data[current_tab])  # Charger les données
-    dessiner_graphe(canvas, current_tab)
-
 # Fonction pour vérifier si un sommet est trop proche d'un autre
 def sommet_trop_proche(nouveau_sommet, sommets):
     x, y = nouveau_sommet
@@ -666,9 +660,6 @@ def afficher_chaine_hamiltonienne():
     else:
         tk.messagebox.showinfo("Résultat", "Aucune chaîne hamiltonienne trouvée.")
         
-def est_degre_impair(sommet, matrice_adj, n):
-    return sum(matrice_adj[sommet]) % 2 != 0
-
 def supprimer_arete(matrice_adj, u, v):
     matrice_adj[u][v] = 0
     matrice_adj[v][u] = 0
@@ -680,52 +671,6 @@ def dfs(matrice_adj, n, sommet, visites, parcours, arbre):
         if matrice_adj[sommet][voisin] == 1 and not visites[voisin]:
             arbre.append((sommet, voisin))
             dfs(matrice_adj, n, voisin, visites, parcours, arbre)
-
-def parcours_profondeur():
-    current_tab = notebook.nametowidget(notebook.select())
-    data = tab_data[str(current_tab)]
-    sommets = data['sommets']
-    aretes = data['aretes']
-
-    n = len(sommets)
-    matrice_adj = [[0] * n for _ in range(n)]
-
-    for s1, s2, orientee in aretes:
-        matrice_adj[s1][s2] = 1
-        if not orientee:
-            matrice_adj[s2][s1] = 1
-
-    visite = [False] * n
-    parcours = []
-    arbre = []
-
-    for sommet in range(n):
-        if not visite[sommet]:
-            dfs(matrice_adj, n, sommet, visite, parcours, arbre)
-
-    # Affichage dans une nouvelle fenêtre
-    profondeur_window = tk.Toplevel(fenetre)
-    profondeur_window.title("Parcours en Profondeur")
-
-    frame = tk.Frame(profondeur_window)
-    frame.pack(fill=tk.BOTH, expand=True)
-
-    v_scroll = tk.Scrollbar(frame, orient=tk.VERTICAL)
-    v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-
-    canvas = tk.Canvas(frame, width=400, height=400, bg='white', yscrollcommand=v_scroll.set)
-    canvas.pack(fill=tk.BOTH, expand=True)
-
-    v_scroll.config(command=canvas.yview)
-
-    dessiner_arbre_couvrant(canvas, arbre, sommets)
-
-    label = tk.Label(profondeur_window, text=" -> ".join([f"{i+1}" for i in parcours]), font=("Helvetica", 12))
-    label.pack(padx=10, pady=10)
-
-    canvas.config(scrollregion=canvas.bbox("all"))
-
-    print("Parcours (Profondeur) :", parcours)
 
 # Fonction pour supprimer une arête dans la matrice d'adjacence
 def est_connexe(matrice_adj, n):
@@ -803,58 +748,6 @@ def afficher_chaine_eulerienne():
         chaine_label.pack(padx=10, pady=10)
     else:
         tk.messagebox.showinfo("Résultat", "Aucune chaîne eulérienne trouvée.")
-
-# Fonction pour dessiner l'arbre couvrant sur un canvas
-def dessiner_arbre_couvrant(canvas, arbre, sommets, aretes):  # Ajout du paramètre aretes
-    canvas.delete("all")
-    rayon = 20
-    
-    # Positions prédéfinies pour chaque sommet
-    positions = {
-        0: (300, 50),   # Sommet 1 en haut
-        1: (150, 200),  # Sommet 2 à gauche
-        2: (450, 200),  # Sommet 3 à droite
-        3: (450, 350),  # Sommet 4 sous le sommet 3
-        4: (150, 350)   # Sommet 5 sous le sommet 2
-    }
-    
-    # Dessiner d'abord toutes les arêtes du graphe en gris
-    for s1, s2, _ in aretes:
-        x1, y1 = positions[s1]
-        x2, y2 = positions[s2]
-        
-        # Calculer l'angle pour positionner les arêtes au bord des cercles
-        angle1 = math.atan2(y2 - y1, x2 - x1)
-        angle2 = math.atan2(y1 - y2, x1 - x2)
-        
-        # Points de départ et d'arrivée au bord des cercles
-        start_x = x1 + rayon * math.cos(angle1)
-        start_y = y1 + rayon * math.sin(angle1)
-        end_x = x2 + rayon * math.cos(angle2)
-        end_y = y2 + rayon * math.sin(angle2)
-        
-        canvas.create_line(start_x, start_y, end_x, end_y, fill='gray')
-    
-    # Dessiner ensuite les arêtes de l'arbre couvrant en vert par-dessus
-    for u, v in arbre:
-        x1, y1 = positions[u]
-        x2, y2 = positions[v]
-        
-        angle1 = math.atan2(y2 - y1, x2 - x1)
-        angle2 = math.atan2(y1 - y2, x1 - x2)
-        
-        start_x = x1 + rayon * math.cos(angle1)
-        start_y = y1 + rayon * math.sin(angle1)
-        end_x = x2 + rayon * math.cos(angle2)
-        end_y = y2 + rayon * math.sin(angle2)
-        
-        canvas.create_line(start_x, start_y, end_x, end_y, fill='green', width=2)
-    
-    # Dessin des sommets (par-dessus les arêtes)
-    for s in positions:
-        x, y = positions[s]
-        canvas.create_oval(x-rayon, y-rayon, x+rayon, y+rayon, fill='skyblue')
-        canvas.create_text(x, y, text=f"{s+1}")
 
 # Fonction pour dessiner l'arbre couvrant sur un canvas
 def dessiner_arbre_couvrant(canvas, arbre, sommets):
@@ -940,7 +833,7 @@ def dessiner_arbre_couvrant(canvas, arbre, sommets):
     # Dessiner les sommets
     for s in positions:
         x, y = positions[s]
-        canvas.create_oval(x-rayon, y-rayon, x+rayon, y+rayon, fill='skyblue')
+        canvas.create_oval(x-rayon, y-rayon, x+rayon, y+rayon, fill='orange')
         canvas.create_text(x, y, text=f"{s+1}")
     
     # Dessiner les arêtes
@@ -956,7 +849,7 @@ def dessiner_arbre_couvrant(canvas, arbre, sommets):
         end_x = x2 + rayon * math.cos(angle2)
         end_y = y2 + rayon * math.sin(angle2)
         
-        canvas.create_line(start_x, start_y, end_x, end_y, fill='green')
+        canvas.create_line(start_x, start_y, end_x, end_y, fill='black',width=4)
 
 def parcours_largeur():
     current_tab = notebook.nametowidget(notebook.select())
@@ -1024,6 +917,52 @@ def parcours_largeur():
 
     # Debug
     print("Parcours:", parcours)  # Pour vérifier le contenu
+
+def parcours_profondeur():
+    current_tab = notebook.nametowidget(notebook.select())
+    data = tab_data[str(current_tab)]
+    sommets = data['sommets']
+    aretes = data['aretes']
+
+    n = len(sommets)
+    matrice_adj = [[0] * n for _ in range(n)]
+
+    for s1, s2, orientee in aretes:
+        matrice_adj[s1][s2] = 1
+        if not orientee:
+            matrice_adj[s2][s1] = 1
+
+    visite = [False] * n
+    parcours = []
+    arbre = []
+
+    for sommet in range(n):
+        if not visite[sommet]:
+            dfs(matrice_adj, n, sommet, visite, parcours, arbre)
+
+    # Affichage dans une nouvelle fenêtre
+    profondeur_window = tk.Toplevel(fenetre)
+    profondeur_window.title("Parcours en Profondeur")
+
+    frame = tk.Frame(profondeur_window)
+    frame.pack(fill=tk.BOTH, expand=True)
+
+    v_scroll = tk.Scrollbar(frame, orient=tk.VERTICAL)
+    v_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+    canvas = tk.Canvas(frame, width=400, height=400, bg='white', yscrollcommand=v_scroll.set)
+    canvas.pack(fill=tk.BOTH, expand=True)
+
+    v_scroll.config(command=canvas.yview)
+
+    dessiner_arbre_couvrant(canvas, arbre, sommets)
+
+    label = tk.Label(profondeur_window, text=" -> ".join([f"{i+1}" for i in parcours]), font=("Helvetica", 12))
+    label.pack(padx=10, pady=10)
+
+    canvas.config(scrollregion=canvas.bbox("all"))
+
+    print("Parcours (Profondeur) :", parcours)
 
 
 # Assurez-vous d'ajouter cette fonction à votre barre de menu ou à un bouton pour l'exécuter.
