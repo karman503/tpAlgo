@@ -8,6 +8,7 @@ import networkx as nx
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
 from docx import Document
+import ast
 
 afficher_etiquettes_aretes = False  # Variable d'état pour afficher les étiquettes des arêtes
 
@@ -210,26 +211,45 @@ def ouvrir_fichier():
 
 # Fonction pour enregistrer le fichier actuel
 def enregistrer_fichier():
-    global current_file
     current_tab = notebook.nametowidget(notebook.select())
-    tab_key = str(current_tab)  # Convertir en chaîne pour utiliser comme clé
-    if current_file:  # Si un fichier est déjà ouvert, enregistrez-le
-        with open(current_file, 'w') as file:
-            file.write(sauvegarder_graphe(tab_key))  # Passer la clé de chaîne
+    tab_key = str(current_tab)
+
+    if tab_key not in tab_data:
+        messagebox.showerror("Erreur", "Aucune donnée disponible pour cet onglet.")
+        return
+
+    current_file = tab_data[tab_key].get('fichier')
+    
+    if current_file:
+        try:
+            with open(current_file, 'w') as file:
+                file.write(sauvegarder_graphe(tab_key))
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Erreur lors de l'enregistrement : {e}")
     else:
-        enregistrer_sous()  # Si aucun fichier n'est ouvert, appeler enregistrer_sous
+        enregistrer_sous()  # Appelle l'autre fonction si pas encore de fichier associé
 
 # Fonction pour enregistrer sous le fichier actuel
 def enregistrer_sous():
-    global current_file
-    fichier = filedialog.asksaveasfilename(defaultextension=".py", filetypes=[("Fichiers Python", "*.py")])
+    fichier = filedialog.asksaveasfilename(
+        defaultextension=".py",
+        filetypes=[("Fichiers Python", "*.py")]
+    )
     if fichier:
         current_tab = notebook.nametowidget(notebook.select())
-        tab_key = str(current_tab)  # Convertir en chaîne pour utiliser comme clé
-        with open(fichier, 'w') as file:
-            file.write(sauvegarder_graphe(tab_key))  # Passer la clé de chaîne
-            current_file = fichier  # Mettez à jour current_file ici
-            notebook.tab(notebook.select(), text=fichier.split('/')[-1])
+        tab_key = str(current_tab)
+
+        if tab_key not in tab_data:
+            messagebox.showerror("Erreur", "Aucune donnée disponible pour cet onglet.")
+            return
+
+        try:
+            with open(fichier, 'w') as file:
+                file.write(sauvegarder_graphe(tab_key))
+                tab_data[tab_key]['fichier'] = fichier  # Associer le fichier à l'onglet
+                notebook.tab(notebook.select(), text=fichier.split('/')[-1])
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Erreur lors de l'enregistrement : {e}")
 
 # Fonction pour fermer l'onglet actuel
 def fermer_fichier():
@@ -294,63 +314,6 @@ def creer_arete_non_oriente():
     creation_arete = True
     tab_data[tab_key]['arete_orientee'] = False  # Utiliser str(current_tab)
     tab_data[tab_key]['type_arete'] = 'non orientée'  # Mettre à jour le type d'arête
-
-# Dessiner le graphe
-def dessiner_graphe(canvas, current_tab):
-    canvas.delete("graphe")  # Efface seulement les éléments du graphe, pas les étiquettes
-    data = tab_data[str(current_tab)]
-    sommets = data['sommets']
-    aretes = data['aretes']
-    
-    # Initialiser les dimensions max/min
-    if not sommets:  # Si aucun sommet n'existe, éviter d'initialiser min/max
-        return  # Sortir si aucun sommet
-
-    min_x = float('inf')
-    min_y = float('inf')
-    max_x = float('-inf')
-    max_y = float('-inf')
-    
-    # Dessiner les arêtes
-    for s1, s2, orientee in aretes:
-        x1, y1 = sommets[s1]
-        x2, y2 = sommets[s2]
-        
-        # Mettre à jour les dimensions max/min
-        min_x = min(min_x, x1, x2)
-        min_y = min(min_y, y1, y2)
-        max_x = max(max_x, x1, x2)
-        max_y = max(max_y, y1, y2)
-        
-        if orientee:
-            draw_arrow(canvas, x1, y1, x2, y2)  # Dessine une flèche pour l'arête orientée
-        else:
-            canvas.create_line(x1, y1, x2, y2, tags="graphe")  # Dessine une ligne pour l'arête non orientée
-        
-    # Dessiner les sommets
-    for i, (x, y) in enumerate(sommets):
-        canvas.create_oval(x-10, y-10, x+10, y+10, fill="blue", tags="graphe")
-        canvas.create_text(x, y, text=str(i+1), fill="white", tags="graphe")
-        
-        # Mettre à jour les dimensions max/min
-        min_x = min(min_x, x-10)
-        min_y = min(min_y, y-10)
-        max_x = max(max_x, x+10)
-        max_y = max(max_y, y+10)
-    
-    # Ajouter une marge autour du graphe
-    margin = 50
-    if sommets:  # Seulement si le graphe n'est pas vide
-        scroll_region = (
-            min_x - margin,
-            min_y - margin,
-            max_x + margin,
-            max_y + margin
-        )
-        canvas.configure(scrollregion=scroll_region)
-    
-    # Mettre à jour le canvas
-    canvas.update_idletasks()
 
 # Dessiner une arête orientée (flèche)
 def draw_arrow(canvas, x1, y1, x2, y2):
@@ -494,58 +457,72 @@ def dessiner_graphe(canvas, current_tab):
         canvas.create_oval(x - 10, y - 10, x + 10, y + 10, fill="blue", tags="sommet")
         canvas.create_text(x, y, text=str(i+1), fill="white", font=("Arial", 10, "bold"))
 
-
 def afficher_graphe_networkx():
-    current_tab = notebook.nametowidget(notebook.select())
-    data = tab_data.get(str(current_tab))
-    
-    if not data:
-        messagebox.showerror("Erreur", "Aucune donnée disponible pour cet onglet.")
-        return
-
-    sommets = data['sommets']
-    aretes = data['aretes']
-    orientee = data['arete_orientee']
-
-    if not sommets:
-        messagebox.showinfo("Info", "Le graphe est vide.")
-        return
-
-    # Construire le graphe avec NetworkX
-    G = nx.DiGraph() if orientee else nx.Graph()
-
-    for i in range(len(sommets)):
-        G.add_node(i)
-
-    for s1, s2, _ in aretes:
-        G.add_edge(s1, s2)
-
-    # Utiliser les vraies positions cliquées pour le dessin
-    pos = {i: (x, -y) for i, (x, y) in enumerate(sommets)}
-
-    # Numérotation des sommets à partir de 1
-    labels = {i: str(i + 1) for i in G.nodes()}
-
-    # Créer la nouvelle fenêtre
-    fenetre_graphe = tk.Toplevel()
-    fenetre_graphe.title("Affichage du Graphe")
-
-    fig, ax = plt.subplots(figsize=(6, 5))
-
-    # Dessiner le graphe avec pos et labels
-    nx.draw(
-        G, pos, labels=labels,
-        node_color='orange',      # couleur des sommets
-        edge_color='black',       # couleur des arêtes
-        node_size=700,            # taille des sommets
-        width=2.5,                # épaisseur des arêtes
-        font_weight='bold', ax=ax
+    # Ouvrir un fichier .py ou .txt
+    file_path = filedialog.askopenfilename(
+        title="Choisir un fichier graphe",
+        filetypes=[("Fichiers Python", "*.py"), ("Fichiers texte", "*.txt"), ("Tous les fichiers", "*.*")]
     )
+    if not file_path:
+        return  # L'utilisateur a annulé
 
-    # Intégrer matplotlib dans Tkinter
-    canvas = FigureCanvasTkAgg(fig, master=fenetre_graphe)
-    canvas.draw()
-    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+    try:
+        with open(file_path, "r") as f:
+            content = f.read()
+
+        # Parser le contenu pour récupérer sommets et aretes
+        # Utiliser ast.literal_eval pour plus de sécurité
+        parsed = {}
+        exec(content, {}, parsed)  # Exécuter dans un dict séparé
+
+        sommets = parsed.get("sommets", [])
+        aretes = parsed.get("aretes", [])
+
+        if not sommets:
+            messagebox.showerror("Erreur", "Le fichier ne contient pas de sommets valides.")
+            return
+
+        # Déterminer si le graphe est orienté (on peut déduire de aretes)
+        orientee = False
+        if aretes:
+            # Exemple : aretes = [(0,1,True), (1,2,False)] => prendre le premier booléen
+            orientee = any(edge[2] for edge in aretes if len(edge) > 2)
+
+        # Construire le graphe
+        G = nx.DiGraph() if orientee else nx.Graph()
+
+        for i in range(len(sommets)):
+            G.add_node(i)
+
+        for s1, s2, _ in aretes:
+            G.add_edge(s1, s2)
+
+        # Position des sommets (inverser y pour matplotlib)
+        pos = {i: (x, -y) for i, (x, y) in enumerate(sommets)}
+
+        labels = {i: str(i + 1) for i in G.nodes()}
+
+        # Nouvelle fenêtre Tkinter
+        fenetre_graphe = tk.Toplevel()
+        fenetre_graphe.title("Affichage du Graphe depuis fichier")
+
+        fig, ax = plt.subplots(figsize=(6, 5))
+
+        nx.draw(
+            G, pos, labels=labels,
+            node_color='orange',
+            edge_color='black',
+            node_size=700,
+            width=2.5,
+            font_weight='bold', ax=ax
+        )
+
+        canvas = FigureCanvasTkAgg(fig, master=fenetre_graphe)
+        canvas.draw()
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+    except Exception as e:
+        messagebox.showerror("Erreur", f"Impossible de charger le fichier:\n{e}")
 
 # Fonction pour générer la matrice d'incidence
 def generer_matrice_incidence():
