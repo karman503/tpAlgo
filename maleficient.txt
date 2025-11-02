@@ -8,7 +8,6 @@ import networkx as nx
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
 from docx import Document
-import ast
 
 afficher_etiquettes_aretes = False  # Variable d'état pour afficher les étiquettes des arêtes
 
@@ -740,16 +739,13 @@ def surligner_chemin(canvas, sommets, chemin, is_euler=False):
     if not chemin:
         return
 
-    # Choisir la couleur selon le type de chaîne : Hamilton -> rouge, Euler -> or/jaune
-    highlight_color = "red" if not is_euler else "gold"
-
     if is_euler:
         for u, v in chemin:
             if u < 0 or v < 0 or u >= len(sommets) or v >= len(sommets):
                 continue
             x1, y1 = sommets[u]
             x2, y2 = sommets[v]
-            canvas.create_line(x1, y1, x2, y2, fill=highlight_color, width=4, tags=("highlight",))
+            canvas.create_line(x1, y1, x2, y2, fill="red", width=4, tags=("highlight",))
     else:
         for i in range(len(chemin) - 1):
             u = chemin[i]
@@ -758,7 +754,7 @@ def surligner_chemin(canvas, sommets, chemin, is_euler=False):
                 continue
             x1, y1 = sommets[u]
             x2, y2 = sommets[v]
-            canvas.create_line(x1, y1, x2, y2, fill=highlight_color, width=4, tags=("highlight",))
+            canvas.create_line(x1, y1, x2, y2, fill="red", width=4, tags=("highlight",))
     # Si l'utilisateur veut des flèches orientées pour les arêtes orientées, dessiner des têtes
     # Note: pour obtenir l'orientation réelle, on cherche dans data['aretes'] si disponible
     try:
@@ -776,7 +772,7 @@ def surligner_chemin(canvas, sommets, chemin, is_euler=False):
                 if is_edge_oriented(aretes, u, v):
                     x1, y1 = sommets[u]
                     x2, y2 = sommets[v]
-                    _draw_highlighted_arrow(canvas, x1, y1, x2, y2, color=highlight_color)
+                    _draw_highlighted_arrow(canvas, x1, y1, x2, y2)
         else:
             # pour Hamilton: parcours de sommets
             for i in range(len(chemin) - 1):
@@ -786,7 +782,7 @@ def surligner_chemin(canvas, sommets, chemin, is_euler=False):
                 if is_edge_oriented(aretes, u, v):
                     x1, y1 = sommets[u]
                     x2, y2 = sommets[v]
-                    _draw_highlighted_arrow(canvas, x1, y1, x2, y2, color=highlight_color)
+                    _draw_highlighted_arrow(canvas, x1, y1, x2, y2)
 
 def _draw_highlighted_arrow(canvas, x1, y1, x2, y2, color="red", width=4):
     """Dessine une ligne surlignée avec une tête de flèche (pour arêtes orientées)."""
