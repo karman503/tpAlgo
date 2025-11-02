@@ -8,7 +8,6 @@ import networkx as nx
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
 from docx import Document
-import ast
 
 afficher_etiquettes_aretes = False  # Variable d'état pour afficher les étiquettes des arêtes
 
